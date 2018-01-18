@@ -24,6 +24,11 @@
         "symfony/validator": "~2.8|^3.0",
         "gigablah/silex-oauth": "~2.0@dev"
     },
+    "config": {
+        "platform": {
+            "php" : "7.0.22"
+        }
+    },
     "autoload": {
         "psr-0": { "": "src/" }
     },

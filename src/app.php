@@ -6,6 +6,7 @@ use Silex\Provider\AssetServiceProvider;
 use Silex\Provider\TwigServiceProvider;
 use Silex\Provider\ServiceControllerServiceProvider;
 use Silex\Provider\HttpFragmentServiceProvider;
+use Symfony\Component\HttpFoundation\Request;
 
 $app = new Application();
 $app->register(new ServiceControllerServiceProvider());
@@ -28,8 +29,7 @@ $app['oauth.services'] = function () {
             'scope' => [],
             'user_endpoint' => 'https://api.twitter.com/1.1/account/verify_credentials.json',
             'user_callback' => function ($token, $userInfo, $service) {
-                $token->setUser($userInfo['name']);
-                $token->setEmail($userInfo['email']);
+                $token->setUser(new \MpConfDay\TwitterUser($userInfo));
                 $token->setUid($userInfo['id']);
             },
         ],
@@ -70,6 +70,34 @@ $app->register(new Silex\Provider\SecurityServiceProvider(), array(
         array('^/auth', 'ROLE_USER')
     )
 ));
+
+$app->before(function (Request $request) use ($app) {
+    if (isset($app['security.token_storage'])) {
+        $token = $app['security.token_storage']->getToken();
+    } else {
+        $token = $app['security']->getToken();
+    }
+
+    $app['user'] = null;
+
+    if ($token && !$app['security.trust_resolver']->isAnonymous($token)) {
+        $app['user'] = $token->getUser();
+    }
+});
+
+$app->get('/', function (Request $request) use ($app) {
+    $services = array_keys($app['oauth.services']);
+
+    return $app['twig']->render('index.html.twig', array(
+        'login_paths' => $app['oauth.login_paths'],
+        'logout_path' => $app['url_generator']->generate('logout', array(
+            '_csrf_token' => $app['oauth.csrf_token']('logout')
+        )),
+        'error' => $app['security.last_error']($request)
+    ));
+});
+
+$app->match('/logout', function () {})->bind('logout');
 
 $app->get('/', function () {
     return "Hello World";
